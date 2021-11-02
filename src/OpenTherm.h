@@ -117,6 +117,7 @@ public:
 	volatile OpenThermStatus status;
 	void begin(void(*handleInterruptCallback)(void));
 	void begin(void(*handleInterruptCallback)(void), void(*processResponseCallback)(unsigned long, OpenThermResponseStatus));
+	void begin(std::function<void(unsigned long, OpenThermResponseStatus)> processResponseFunction);
 	bool isReady();
 	unsigned long sendRequest(unsigned long request);
 	bool sendResponse(unsigned long request);
@@ -181,6 +182,9 @@ private:
 	void sendBit(bool high);
 	void(*handleInterruptCallback)();
 	void(*processResponseCallback)(unsigned long, OpenThermResponseStatus);
+	
+	std::function<void(void)> handleInterruptFuntion;
+	std::function<void(unsigned long, OpenThermResponseStatus)> processResponseFunction;
 };
 
 #ifndef ICACHE_RAM_ATTR

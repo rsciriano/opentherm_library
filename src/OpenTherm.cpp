@@ -4,6 +4,7 @@ Copyright 2018, Ihor Melnyk
 */
 
 #include "OpenTherm.h"
+#include "FunctionalInterrupt.h"
 
 OpenTherm::OpenTherm(int inPin, int outPin, bool isSlave):
 	status(OpenThermStatus::NOT_INITIALIZED),
@@ -29,6 +30,19 @@ void OpenTherm::begin(void(*handleInterruptCallback)(void), void(*processRespons
 	activateBoiler();
 	status = OpenThermStatus::READY;
 	this->processResponseCallback = processResponseCallback;
+}
+
+void OpenTherm::begin(std::function<void(unsigned long, OpenThermResponseStatus)> processResponseFunction) {
+	pinMode(inPin, INPUT);
+	pinMode(outPin, OUTPUT);
+	
+	attachInterrupt(digitalPinToInterrupt(inPin), [this]() {
+    	this->handleInterrupt();
+	}, CHANGE);
+	activateBoiler();
+	status = OpenThermStatus::READY;
+	this->processResponseFunction = processResponseFunction;
+
 }
 
 void OpenTherm::begin(void(*handleInterruptCallback)(void))
@@ -186,6 +200,9 @@ void OpenTherm::process()
 		if (processResponseCallback != NULL) {
 			processResponseCallback(response, responseStatus);
 		}
+		if (this->processResponseFunction != NULL) {
+			processResponseFunction(response, responseStatus);
+		}
 	}
 	else if (st == OpenThermStatus::RESPONSE_INVALID) {
 		status = OpenThermStatus::DELAY;
@@ -193,12 +210,18 @@ void OpenTherm::process()
 		if (processResponseCallback != NULL) {
 			processResponseCallback(response, responseStatus);
 		}
+		if (this->processResponseFunction != NULL) {
+			processResponseFunction(response, responseStatus);
+		}
 	}
 	else if (st == OpenThermStatus::RESPONSE_READY) {
 		status = OpenThermStatus::DELAY;
 		responseStatus = (isSlave ? isValidRequest(response) : isValidResponse(response)) ? OpenThermResponseStatus::SUCCESS : OpenThermResponseStatus::INVALID;
 		if (processResponseCallback != NULL) {
 			processResponseCallback(response, responseStatus);
+		}
+		if (this->processResponseFunction != NULL) {
+			processResponseFunction(response, responseStatus);
 		}
 	}
 	else if (st == OpenThermStatus::DELAY) {
